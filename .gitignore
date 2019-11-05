@@ -34,3 +34,12 @@ vignettes/*.pdf
 
 # Shiny token, see https://shiny.rstudio.com/articles/shinyapps.html
 rsconnect/
+
+# Emacs auto-save stuff:
+*~
+
+# RDS data files:
+*.rds
+
+# MC simulation output:
+output/*

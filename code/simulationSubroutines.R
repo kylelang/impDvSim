@@ -7,18 +7,24 @@
 
 ## Simulated some toy data:
 simData <- function(parms) {
-    alpha <- parms$coefs[1, ]
-    beta  <- parms$coefs[-1, ]
+    ## Generate predictor covariance matrix:
+    p        <- length(parms$varNames) - 1
+    sX       <- matrix(parms$covX, p, p)
+    diag(sX) <- 1.0
 
-    X <- rmvnorm(n     = parms$nObs,
-                 mean  = rep(0, ncol(parms$sigmaX)),
-                 sigma = parms$sigmaX)
+    ## Simulate predictor data:
+    X <- rmvnorm(n = parms$nObs, mean = rep(0, p), sigma = sX)
 
+    ## Extract coefficients:
+    alpha  <- parms$coefs[1, ]
+    beta   <- matrix(parms$coefs[-1, ])
+    
+    ## Define residual variance:
     signal <- t(beta) %*% cov(X) %*% beta
-    sigma2 <- (signal / parms$rSquared) - signal
+    sY     <- (signal / parms$r2) - signal
 
-    y <- rep(alpha, parms$nObs) + X %*% beta +
-        rnorm(parms$nObs, 0, sqrt(sigma2))
+    ## Simulate outcome data:
+    y <- alpha + X %*% beta + rnorm(parms$nObs, 0, sqrt(sY))
 
     outData           <- data.frame(y, X)
     colnames(outData) <- parms$varNames
@@ -29,52 +35,35 @@ simData <- function(parms) {
 ###--------------------------------------------------------------------------###
 
 ## Impose missing data:
-imposeMissing <- function(inData, parms) {
-    incompVars <- parms$incompVars
-    auxVars    <- parms$auxVars
-    auxWts     <- parms$auxWts
-    pm         <- parms$pm
-    missType   <- parms$missType
-
-    for(v in 1 : length(incompVars)) {
-        if(length(auxVars[[v]]) > 1)
-            linPred <- as.matrix(inData[ , auxVars[[v]]]) %*% auxWts
-        else
-            linPred <- inData[ , auxVars[[v]]]
-
-        pVec <- pnorm(linPred, mean(linPred), sd(linPred))
-
-        if(missType[v] == "tails") {
-            rVec <- pVec < (pm / 2) | pVec > (1 - (pm/2))
-        } else if(missType[v] == "center") {
-            rVec <- pVec > (0.5 - (pm / 2)) & pVec < (0.5 + (pm / 2))
-        } else if(missType[v] == "lower") {
-            rVec <- pVec < pm
-        } else if(missType[v] == "upper") {
-            rVec <- pVec > (1 - pm)
-        } else {
-            stop("Please provide a valid 'missType'")
-        }
-
-        inData[rVec, incompVars[v]] <- NA
+imposeMissing <- function(data, parms) {
+    for(v in 1 : length(parms$incompVars)) {
+        ## Generate nonresponse vector:
+        rVec <- with(parms, 
+                     simMissingness(pm    = pm,
+                                    data  = data,
+                                    preds = auxVars[[v]],
+                                    type  = missType[[v]],
+                                    beta  = auxWts)
+                     )
+        data[rVec, parms$incompVars[v]] <- NA
     }
-    inData
+    data
 }# END imposeMissing()
 
 ###--------------------------------------------------------------------------###
 
 ## MI-based analyses:
-fitModels <- function(inData, parms) {
-    if(is.data.frame(inData)) {# We're analyzing a single dataset
+fitModels <- function(data, parms) {
+    if(is.data.frame(data)) { # We're analyzing a single dataset
         lmFit <- try(
-            lm(parms$model, data = inData, na.action = "na.omit"),
+            lm(parms$model, data = data, na.action = "na.omit"),
             silent = TRUE
         )
-    } else {# We're analyzing multiply imputed data
+    }
+    else { # We're analyzing multiply imputed data
         fitList <- try(
-            lapply(inData,
-                   FUN = function(impData, parms)
-                       lm(parms$model, data = impData),
+            lapply(data,
+                   FUN = function(miData, parms) lm(parms$model, data = miData),
                    parms = parms),
             silent = TRUE
         )
@@ -92,7 +81,7 @@ getStats <- function(lmOut, parms) {
         ## Compute Wald stats and significance:
         waldVec <- coef(lmOut) / sqrt(diag(vcov(lmOut)))
         sigVec  <- 2 * pt(abs(waldVec), df = lmOut$df, lower = FALSE) < 0.05
-
+        
         ## Compute CIs:
         ciVec <- as.vector(confint(lmOut))
 
@@ -103,9 +92,10 @@ getStats <- function(lmOut, parms) {
                            "intLb", "xLb", "z1Lb",
                            "intUb", "xUb", "z1Ub",
                            "intSig", "xSig", "z1Sig")
-    } else {
-        outVec <- list("LM_CONVERGENCE_FAILURE", lmOut)
     }
+    else
+        outVec <- list("LM_CONVERGENCE_FAILURE", lmOut)
+    
     outVec
 }# END getStats()
 
@@ -114,14 +104,16 @@ getStats <- function(lmOut, parms) {
 ## Do all computations for a single set of crossed conditions:
 runCell <- function(rp, compData, missData, parms) {
     ## Impute the missingess:
-    miceOut <- mice(data      = missData,
-                    m         = parms$nImps,
-                    maxit     = parms$miceIters,
-                    method    = "norm",
-                    printFlag = parms$verbose)
-
+    miceOut <- with(parms,
+                    mice(data      = missData,
+                         m         = nImps,
+                         maxit     = miceIters,
+                         method    = "norm",
+                         printFlag = verbose)
+                    )
+    
     ## Fill the imputed data sets:
-    rVec <- is.na(missData$y)
+    rVec    <- is.na(missData$y)
     impList <- impList2 <- list()
     for(m in 1 : parms$nImps) {
         impList[[m]] <- complete(miceOut, m)
@@ -146,53 +138,56 @@ runCell <- function(rp, compData, missData, parms) {
     midOut <- getStats(midFit, parms)
 
     ## Save Results:
-    if(parms$testing) {
-        fnCore <- ""
-    } else {
-        fnCore <- paste0("_n", nrow(missData),
-                         "_rs", parms$rSquared,
-                         "_cl", parms$sigmaX[2, 1],
-                         "_ap", parms$auxWts[1],
-                         "_pm", parms$pm)
-    }
-
-    if(rp == 1) saveRDS(parms,
-                        file =
-                            paste0(parms$outDir,
-                                   "parms", fnCore,
-                                   ".rds")
-                        )
-
+    fnCore <- with(parms,
+                   paste0("_n", nrow(compData),
+                          "_rs", 100 * r2,
+                          "_cx", 100 * covX,
+                          "_ap", 100 * auxWts[1],
+                          "_pm", 100 * pm)
+                   )
+    
+    if(rp == 1)
+        saveRDS(parms,
+                file = paste0(parms$outDir,
+                              "parms",
+                              fnCore,
+                              ".rds")
+                )
+    
     saveRDS(compOut,
-            file =
-                paste0(parms$outDir,
-                       "compOut", fnCore,
-                       "_rep", rp,
-                       ".rds")
+            file = paste0(parms$outDir,
+                          "compOut",
+                          fnCore,
+                          "_rep",
+                          rp,
+                          ".rds")
             )
 
     saveRDS(ldOut,
-            file =
-                paste0(parms$outDir,
-                       "ldOut", fnCore,
-                       "_rep", rp,
-                       ".rds")
+            file = paste0(parms$outDir,
+                          "ldOut",
+                          fnCore,
+                          "_rep",
+                          rp,
+                          ".rds")
             )
 
     saveRDS(miOut,
-            file =
-                paste0(parms$outDir,
-                       "miOut", fnCore,
-                       "_rep", rp,
-                       ".rds")
+            file = paste0(parms$outDir,
+                          "miOut",
+                          fnCore,
+                          "_rep",
+                          rp,
+                          ".rds")
             )
 
     saveRDS(midOut,
-            file =
-                paste0(parms$outDir,
-                       "midOut", fnCore,
-                       "_rep", rp,
-                       ".rds")
+            file = paste0(parms$outDir,
+                          "midOut",
+                          fnCore,
+                          "_rep",
+                          rp,
+                          ".rds")
             )
 }# END runCell()
 
@@ -208,31 +203,38 @@ doRep <- function(rp, conds, parms) {
     
     ## Loop over conditions:
     for(i in 1 : nrow(conds)) {
-        ## Extract design parameters for the current replication:
-        cl <- conds[i, "cl"]
-        n  <- conds[i, "n"]
-
-        ap           <- conds[i, "prop"]
-        parms$auxWts <- matrix(c(ap, (1 - ap)))
+        ## Save the current values (possibly NULL) of covX and r2 to check if
+        ## we need to simulate new data:
+        cx <- parms$covX
+        r2 <- parms$r2
         
-        parms$r2 <- conds[i, "r2"]
-        parms$pm <- conds[i, "pm"]
+        ## Update the values of covX and r2: 
+        parms$covX <- conds[i, "cx"]
+        parms$r2   <- conds[i, "r2"]
+        
+        ## Simulate new complete data, if covX or r2 have changed:
+        check <-
+            (is.null(cx) | is.null(r2)) || (cx != parms$covX | r2 != parms$r2)
+        if(check) compData <- simData(parms)
+        
+        ## Subset the complete data, if the sample size has changed:
+        n0 <- ifelse(i > 1, n, 0)
+        n  <- conds[i, "n"]
+        if(n != n0) compData <- compData[1 : n, ]
 
-        ## Define the predictors' covariance matrix:
-        sigmaX <-
-            matrix(cl, length(parms$varNames) - 1, length(parms$varNames) - 1)
-        diag(sigmaX) <- 1.0
-        parms$sigmaX <- sigmaX
-
-        ## Simulate and subset the complete data:
-        compData <- simData(parms)
-        compData <- compData[1 : n, ]
+        ## Define the missing data-related design parameters:
+        ap           <- conds[i, "ap"]
+        parms$auxWts <- matrix(c(ap, (1 - ap)))
+        parms$pm     <- conds[i, "pm"]
         
         ## Generate missing data:
         missData <- imposeMissing(compData, parms)
-
+        
         ## Run the computations for the current condition:
-        runCell(rp = rp, compData = compData, missData = missData, parms = parms)
+        runCell(rp       = rp,
+                compData = compData,
+                missData = missData,
+                parms    = parms)
     }
 
     rp # return rep index
@@ -243,13 +245,5 @@ doRep <- function(rp, conds, parms) {
 ## Broadcast the library function of a list of packages:
 applyLib <- function(pkgList)
     lapply(pkgList, library, character.only = TRUE, logical = TRUE)
-
-###--------------------------------------------------------------------------###
-
-## Estimate the mode of a continuous variable:
-getMode <- function(x) {
-    d <- density(x)
-    d$x[which.max(d$y)]
-}
 
 ###--------------------------------------------------------------------------###

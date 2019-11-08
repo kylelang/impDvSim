@@ -5,16 +5,12 @@
 
 ###--------------------------------------------------------------------------###
 
-## Objective function for intercept to generate 'high' or 'low' missingness:
-f1 <- function(alpha, eta, pm) (mean(plogis(alpha + eta)) - pm)^2
-
-###--------------------------------------------------------------------------###
-
-## Objective function for weights to generate 'center' or 'tail' missingness:
-f2 <- function(par, eta, pm, type) {
+## Objective function for the logistic regression offset:
+fOffset <- function(offset, eta, pm, type) {
     f <- switch(type,
-                center = par[1] + par[2] - abs(eta),
-                tails  = abs(eta) - par[1] + par[2]
+                center = offset - abs(eta),
+                tails  = abs(eta) - offset,
+                offset + eta
                 )
     
     (mean(plogis(f)) - pm)^2
@@ -22,18 +18,19 @@ f2 <- function(par, eta, pm, type) {
 
 ###--------------------------------------------------------------------------###
 
-## Optimize the logistic regression intercept (alpha) for a given value of the
-## linear predictor (eta) to get a desired percent missing (pm):
-optAlpha1 <- function(pm, eta, tol = c(0.1, 0.001), maxIter = 10) {
+## Optimize the logistic regression offset for a given value of the linear
+## predictor (eta) to get a desired percent missing (pm):
+optOffset <- function(pm, eta, type, tol = c(0.1, 0.001), maxIter = 10) {
     for(k in 1 : maxIter) {
         ## Define the search range:
         int <- k * range(eta)
         
         ## Optimize the objective over 'int':
-        out <- optimize(f        = fAlpha,
+        out <- optimize(f        = fOffset,
                         interval = int,
                         eta      = eta,
-                        pm       = pm)
+                        pm       = pm,
+                        type     = type)
         
         ## Are we far enough from the boundary?
         dist   <- out$minimum - int
@@ -52,26 +49,6 @@ optAlpha1 <- function(pm, eta, tol = c(0.1, 0.001), maxIter = 10) {
 
 ###--------------------------------------------------------------------------###
 
-## Optimize the intercept (par1) and offset (par2) for a given value of the
-## linear predictor (eta) to get a desired percent missing (pm):
-optAlpha2 <- function(pm, eta, type) {
-    ## Optimize the objective:
-    out <- optimx(par     = c(0.5, 0.5),
-                  fn     = f2,
-                  method = "BFGS",
-                  eta    = eta,
-                  pm     = pm,
-                  type   = type)
-
-    ## Did the algorithm converge?
-    check <- out$convcode == 0
-    if(!check) stop("The optimization did not converge.")
-    
-    c(offset = out$p1, int = out$p2)
-}
-
-###--------------------------------------------------------------------------###
-
 ## Simulate a nonresponse vector:
 simMissingness <- function(pm,
                            data,
@@ -81,29 +58,24 @@ simMissingness <- function(pm,
 {
     ## Define a trivial slope vector, if necessary:
     if(is.null(beta)) beta <- rep(1.0, length(preds))
-
+    
     ## Compute (and standardize) the linear predictor:
     eta <- scale(
         as.matrix(data[ , preds]) %*% matrix(beta)
     )
     
-    ## Optimize the intercept/offset and compute the probabilities of
-    ## nonresponse:
-    if(type %in% c("high", "low")) {
-        alpha <- optAlpha1(pm = pm, eta = eta)$minimum        
-        probs <- plogis(alpha + switch(type, high = eta, low = -eta))
-    }
-    else if(type %in% c("center", "tails")) {
-        weights <- optAlpha2(pm = pm, eta = eta, type = type)
-        probs   <- plogis(
-            switch(type,
-                   center = sum(weights) - abs(eta),
-                   tails  = abs(eta) - weights[1] + weights[2]
-                   )
-        )
-    }
-    else
-        stop(paste(type, "is not a valid 'type'."))
+    ## Optimize the offset:
+    offset <- optOffset(pm = pm, eta = eta, type = type)$minimum
+    
+    ## Compute the probabilities of nonresponse:
+    probs <- plogis(
+        switch(type,
+               high   = offset + eta,
+               low    = offset - eta,
+               center = offset - abs(eta),
+               tails  = abs(eta) - offset
+               )
+    )
     
     ## Return a logical nonresponse vector:
     as.logical(rbinom(n = length(eta), size = 1, prob = probs))

@@ -5,71 +5,36 @@
 
 rm(list = ls(all = TRUE))
 
-t0 <- proc.time() # store start time
+                                        #args <- commandArgs(trailingOnly = TRUE) # extract commandline arguments
 
-args <- commandArgs(trailingOnly = TRUE) # extract commandline arguments
+## Initialize the environment:
+source("init.R")
 
-library(parallel)
-source("simMissingness.R")
-source("supportFunctions.R")
+## Run the simulation:
+if(parallel) {
+    runTime <- system.time(
+        parLapply(cl    = cl,
+                  X     = c(startRep : stopRep),
+                  fun   = doRep,
+                  conds = conds,
+                  parms = parms)
+    )
+    stopCluster(cl)
+} else
+    runTime <- system.time(doRep(rp = 1, conds = conds, parms = parms))
 
-## Which study are we running?
-studyNo <- as.numeric(args[1])
+## Save the run time:
+saveRDS(runTime,
+        paste0(outDir,
+               "runTime-",
+               format(Sys.time(), "%Y%m%d_%H:%M:%S"),
+               ".rds")
+        )
 
-## Setup parallelization environment:
-clusterSize <- as.numeric(args[2])
-startRep    <- as.numeric(args[3])
-stopRep     <- as.numeric(args[4])
+out1 <- readRDS(paste0(outDir, "compOut_n500_rs60_cx50_ap25_pm40_rep1.rds"))
+out2 <- readRDS(paste0(outDir, "compOut_n500_rs60_cx50_ap25_pm20_rep1.rds"))
 
-## Define levels of variable simulation parameters:
-n       <- c(500, 250, 100)
-pm      <- c(0.1, 0.2, 0.4)
-r2      <- c(0.15, 0.3, 0.6)
-cl      <- c(0.0, 0.1, 0.3, 0.5)
-auxProp <- c(1.0, 0.75, 0.5, 0.25, 0.0)
+out1
+out2
 
-conds <- expand.grid(cl = cl, r2 = r2, n = n, prop = auxProp, pm)
-
-## Define the fixed simulation parameters:
-parms <- list()
-parms$verbose    <- FALSE
-parms$nImps      <- 100
-parms$miceIters  <- 10
-parms$outDir     <- args[5]
-parms$incompVars <- c("y", "x1")
-parms$auxVars    <- switch(studyNo,
-                           list(c("z1", "z2"), c("z1", "z2")),
-                           list("y", c("z1", "z2"))
-                           )
-parms$missType   <- c("upper", "lower")
-parms$coefs      <- matrix(c(1.0, 0.33, 0.33, 0.33))
-parms$varNames   <- c("y", "x1", "z1", "z2")
-parms$model      <- as.formula("y ~ x1 + z1")
-parms$mySeed     <- 235711
-parms$maxStreams <- 500
-parms$testing    <- FALSE
-parms$nReps      <- stopRep - startRep + 1
-parms$nObs       <- max(conds$n)
-
-
-
-## Run in parallel:
-cl <- makeCluster(clusterSize, type = "MPI")
-
-clusterCall(cl = cl, fun = source, file = "supportFunctions.R")
-clusterCall(cl      = cl,
-            fun     = applyLib,
-            pkgList = c("rlecuyer", "mvtnorm", "mice", "mitools", "optimx")
-            )
-
-parLapply(cl    = cl,
-          X     = c(startRep : stopRep),
-          fun   = doRep,
-          conds = conds,
-          parms = parms)
-
-stopCluster(cl)
-
-## Calculate and save the overall run time:
-runTime <- proc.time() - t0
-saveRDS(runTime, "runTime.rds")
+out1 - out2

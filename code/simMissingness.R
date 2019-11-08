@@ -1,9 +1,7 @@
-### Title:    Experiments with Missing Data Simulation Methods
+### Title:    Simulate MAR Missingness via Logistic Regression
 ### Author:   Kyle M. Lang
 ### Created:  2019-11-06
-### Modified: 2019-11-07
-
-library(optimx)
+### Modified: 2019-11-08
 
 ###--------------------------------------------------------------------------###
 

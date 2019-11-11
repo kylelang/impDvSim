@@ -34,9 +34,6 @@ simData <- function(parms) {
 
 ###--------------------------------------------------------------------------###
 
-                                        #data <- compData
-                                        #v <- 1
-
 ## Impose missing data:
 imposeMissing <- function(data, parms) {
     for(v in 1 : length(parms$incompVars)) {
@@ -148,14 +145,6 @@ runCell <- function(rp, compData, missData, parms) {
     midFit <- fitModels(impList2, parms)
     midOut <- getStats(midFit, parms)
 
-    ## Save Results:
-                                        #tag1 <- with(parms,
-                                        #             paste0("_n", nrow(compData),
-                                        #                    "_rs", 100 * r2,
-                                        #                    "_cx", 100 * covX,
-                                        #                    "_ap", 100 * auxWts[1],
-                                        #                    "_pm", 100 * pm)
-                                        #)
     ## Create a condition tag to label output objects:
     tag1 <- with(parms,
                  paste0("_n", nrow(compData),
@@ -218,14 +207,12 @@ runCell <- function(rp, compData, missData, parms) {
 
 ###--------------------------------------------------------------------------###
 
-                                        #i <- 1
-
 ## Run a single replication of the simulation:
 doRep <- function(rp, conds, parms) {
     ## Setup the PRNG:
-    .lec.SetPackageSeed(rep(parms$mySeed, 6))
+    .lec.SetPackageSeed(rep(parms$seed, 6))
     if(!rp %in% .lec.GetStreams())
-        .lec.CreateStream(c(1 : parms$maxStreams))
+        .lec.CreateStream(c(1 : parms$nStreams))
     .lec.CurrentStream(rp)
     
     ## Loop over conditions:

@@ -1,7 +1,7 @@
 ### Title:    Simulate MAR Missingness via Logistic Regression
 ### Author:   Kyle M. Lang
 ### Created:  2019-11-06
-### Modified: 2019-11-08
+### Modified: 2019-11-11
 
 ###--------------------------------------------------------------------------###
 
@@ -48,14 +48,7 @@ optOffset <- function(pm, eta, type, tol = c(0.1, 0.001), maxIter = 10) {
 }
 
 ###--------------------------------------------------------------------------###
-
-                                        #pm <- 0.2
-                                        #data <- compData
-                                        #preds <- "y"
-                                        #type <- "high"
-                                        #beta <- mdBeta
-                                        #parms$auxWts
-
+                                 
 ## Simulate a nonresponse vector:
 simMissingness <- function(pm,
                            data,

@@ -1,7 +1,7 @@
 ### Title:    Initialize Environment and Parameters for Imputed DV Simulation
 ### Author:   Kyle M. Lang
 ### Created:  2019-11-08
-### Modified: 2019-11-08
+### Modified: 2019-11-11
 
 library(parallel)
 source("simulationSubroutines.R")
@@ -10,22 +10,18 @@ source("simulationSubroutines.R")
 packages <- c("rlecuyer", "mvtnorm", "mice", "mitools")
 
 ## Which study are we running?
-                                        #studyNo <- as.numeric(args[1])
 studyNo <- 2
+                                        #studyNo <- as.numeric(args[1])
 
 ## Setup parallelization environment:
-                                        #startRep    <- as.numeric(args[2])
-                                        #stopRep     <- as.numeric(args[3])
-                                        #parallel    <- as.logical(args[4])
-                                        #clusterSize <- as.numeric(args[5])
-                                        #outDir      <- args[6]
-                                       
-
 startRep    <- 1
 stopRep     <- 3
-parallel    <- FALSE
 clusterSize <- 3
 outDir      <- "../output/test1/"
+                                        #startRep    <- as.numeric(args[2])
+                                        #stopRep     <- as.numeric(args[3])
+                                        #clusterSize <- as.numeric(args[4])
+                                        #outDir      <- args[5]
 
 ## Define levels of variable simulation parameters:
 n  <- c(500, 250, 100)             # Sample size
@@ -38,7 +34,7 @@ conds <- expand.grid(pm = pm, ap = ap, n = n, r2 = r2, cx = cx)
 
 ## Define the fixed simulation parameters:
 parms <- list()
-parms$verbose    <- TRUE
+parms$verbose    <- FALSE
 parms$nImps      <- 10
 parms$miceIters  <- 10
 parms$outDir     <- outDir
@@ -51,19 +47,14 @@ parms$missType   <- c("high", "low")
 parms$coefs      <- matrix(c(1.0, 0.33, 0.33, 0.33))
 parms$varNames   <- c("y", "x1", "z1", "z2")
 parms$model      <- as.formula("y ~ x1 + z1")
-parms$mySeed     <- 235711
-parms$maxStreams <- 500
-parms$nReps      <- stopRep - startRep + 1
+parms$seed       <- 235711
+parms$nStreams   <- 500
 parms$nObs       <- max(conds$n)
 
-## Initialize a cluster, if necessary:
-if(parallel) {
-    cl <- makeCluster(clusterSize, type = "PSOCK") # Use type = "MPI" when running on cluster
-    
-    clusterCall(cl = cl, fun = source, file = "simMissingness.R")
-    clusterCall(cl = cl, fun = source, file = "simulationSubroutines.R")
-    clusterCall(cl = cl, fun = applyLib, pkgList = packages)
-} else {
-    applyLib(packages)
-    source("simMissingness.R")
-}
+## Initialize a cluster:
+cl <- makeCluster(clusterSize)
+
+## Setup the environment on worker nodes:
+clusterCall(cl = cl, fun = source, file = "simMissingness.R")
+clusterCall(cl = cl, fun = source, file = "simulationSubroutines.R")
+clusterCall(cl = cl, fun = applyLib, pkgList = packages)

@@ -34,6 +34,8 @@ simData <- function(parms) {
 
 ###--------------------------------------------------------------------------###
 
+dat0 <- simData(parms) #########################################################
+
 ## Impose missing data:
 imposeMissing <- function(data, parms) {
     for(v in 1 : length(parms$incompVars)) {

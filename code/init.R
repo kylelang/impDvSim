@@ -11,7 +11,7 @@ packages <- c("rlecuyer", "mvtnorm", "mice", "mitools")
 
 ## Which study are we running?
                                         #studyNo <- as.numeric(args[1])
-studyNo <- 1
+studyNo <- 2
 
 ## Setup parallelization environment:
                                         #startRep    <- as.numeric(args[2])
@@ -23,7 +23,7 @@ studyNo <- 1
 
 startRep    <- 1
 stopRep     <- 2
-parallel    <- TRUE
+parallel    <- FALSE
 clusterSize <- 2
 outDir      <- "../output/test1/"
 

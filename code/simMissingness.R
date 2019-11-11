@@ -49,6 +49,13 @@ optOffset <- function(pm, eta, type, tol = c(0.1, 0.001), maxIter = 10) {
 
 ###--------------------------------------------------------------------------###
 
+                                        #pm <- 0.2
+                                        #data <- compData
+                                        #preds <- "y"
+                                        #type <- "high"
+                                        #beta <- mdBeta
+                                        #parms$auxWts
+
 ## Simulate a nonresponse vector:
 simMissingness <- function(pm,
                            data,

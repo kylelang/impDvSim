@@ -1,7 +1,7 @@
 ### Title:    Subroutines for Imputed DV Simulation
 ### Author:   Kyle M. Lang
 ### Created:  2015-11-16
-### Modified: 2019-11-08
+### Modified: 2019-11-11
 
 ###--------------------------------------------------------------------------###
 
@@ -34,18 +34,27 @@ simData <- function(parms) {
 
 ###--------------------------------------------------------------------------###
 
-dat0 <- simData(parms) #########################################################
+                                        #data <- compData
+                                        #v <- 1
 
 ## Impose missing data:
 imposeMissing <- function(data, parms) {
     for(v in 1 : length(parms$incompVars)) {
+        ## Are we simulating MNAR missingness?
+        mnar <- with(parms,
+                     length(auxVars[v]) == 1 && incompVars[v] == auxVars[v]
+                     ) 
+
+        if(mnar) mdBeta <- 1
+        else     mdBeta <- parms$auxWts
+        
         ## Generate nonresponse vector:
         rVec <- with(parms, 
                      simMissingness(pm    = pm,
                                     data  = data,
                                     preds = auxVars[[v]],
-                                    type  = missType[[v]],
-                                    beta  = auxWts)
+                                    type  = missType[v],
+                                    beta  = mdBeta)
                      )
         data[rVec, parms$incompVars[v]] <- NA
     }
@@ -140,35 +149,49 @@ runCell <- function(rp, compData, missData, parms) {
     midOut <- getStats(midFit, parms)
 
     ## Save Results:
-    fnCore <- with(parms,
-                   paste0("_n", nrow(compData),
-                          "_rs", 100 * r2,
-                          "_cx", 100 * covX,
-                          "_ap", 100 * auxWts[1],
-                          "_pm", 100 * pm)
-                   )
-    
+                                        #tag1 <- with(parms,
+                                        #             paste0("_n", nrow(compData),
+                                        #                    "_rs", 100 * r2,
+                                        #                    "_cx", 100 * covX,
+                                        #                    "_ap", 100 * auxWts[1],
+                                        #                    "_pm", 100 * pm)
+                                        #)
+    ## Create a condition tag to label output objects:
+    tag1 <- with(parms,
+                 paste0("_n", nrow(compData),
+                        "_rs", 100 * r2,
+                        "_cx", 100 * covX)
+                 )
+    tag2 <- with(parms,
+                 paste0(tag1,
+                        "_ap", 100 * auxWts[1],
+                        "_pm", 100 * pm)
+                 )
+
+    ## Save the current parameter set:
     if(rp == 1)
         saveRDS(parms,
                 file = paste0(parms$outDir,
                               "parms",
-                              fnCore,
+                              tag1,
                               ".rds")
                 )
-    
-    saveRDS(compOut,
-            file = paste0(parms$outDir,
-                          "compOut",
-                          fnCore,
-                          "_rep",
-                          rp,
-                          ".rds")
-            )
+
+    ## Save the results:
+    if(parms$newData | parms$newN)
+        saveRDS(compOut,
+                file = paste0(parms$outDir,
+                              "compOut",
+                              tag1,
+                              "_rep",
+                              rp,
+                              ".rds")
+                )
 
     saveRDS(ldOut,
             file = paste0(parms$outDir,
                           "ldOut",
-                          fnCore,
+                          tag2,
                           "_rep",
                           rp,
                           ".rds")
@@ -177,7 +200,7 @@ runCell <- function(rp, compData, missData, parms) {
     saveRDS(miOut,
             file = paste0(parms$outDir,
                           "miOut",
-                          fnCore,
+                          tag2,
                           "_rep",
                           rp,
                           ".rds")
@@ -186,7 +209,7 @@ runCell <- function(rp, compData, missData, parms) {
     saveRDS(midOut,
             file = paste0(parms$outDir,
                           "midOut",
-                          fnCore,
+                          tag2,
                           "_rep",
                           rp,
                           ".rds")
@@ -194,6 +217,8 @@ runCell <- function(rp, compData, missData, parms) {
 }# END runCell()
 
 ###--------------------------------------------------------------------------###
+
+                                        #i <- 1
 
 ## Run a single replication of the simulation:
 doRep <- function(rp, conds, parms) {
@@ -217,13 +242,21 @@ doRep <- function(rp, conds, parms) {
         ## Simulate new complete data, if covX or r2 have changed:
         check <-
             (is.null(cx) | is.null(r2)) || (cx != parms$covX | r2 != parms$r2)
-        if(check) compData <- simData(parms)
+        if(check) {
+            compData      <- simData(parms)
+            parms$newData <- TRUE
+        }
+        else parms$newData <- FALSE
         
         ## Subset the complete data, if the sample size has changed:
         n0 <- ifelse(i > 1, n, 0)
         n  <- conds[i, "n"]
-        if(n != n0) compData <- compData[1 : n, ]
-
+        if(n != n0) {
+            compData   <- compData[1 : n, ]
+            parms$newN <- TRUE
+        }
+        else parms$newN <- FALSE
+        
         ## Define the missing data-related design parameters:
         ap           <- conds[i, "ap"]
         parms$auxWts <- matrix(c(ap, (1 - ap)))
@@ -231,7 +264,7 @@ doRep <- function(rp, conds, parms) {
         
         ## Generate missing data:
         missData <- imposeMissing(compData, parms)
-        
+
         ## Run the computations for the current condition:
         runCell(rp       = rp,
                 compData = compData,

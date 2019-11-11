@@ -31,10 +31,15 @@ saveRDS(runTime,
                ".rds")
         )
 
-out1 <- readRDS(paste0(outDir, "compOut_n500_rs60_cx50_ap25_pm40_rep1.rds"))
-out2 <- readRDS(paste0(outDir, "compOut_n500_rs60_cx50_ap25_pm20_rep1.rds"))
+out1 <- readRDS(paste0(outDir, "miOut_n500_rs60_cx50_ap25_pm40_rep1.rds"))
+out2 <- readRDS(paste0(outDir, "miOut_n250_rs60_cx50_ap25_pm20_rep1.rds"))
+
+out1 <- readRDS(paste0(outDir, "compOut_n500_rs60_cx50_rep1.rds"))
+out2 <- readRDS(paste0(outDir, "compOut_n250_rs60_cx50_rep1.rds"))
 
 out1
 out2
 
 out1 - out2
+
+runTime / 60

@@ -225,6 +225,7 @@ doRep <- function(rp, conds, parms) {
         ## Update the values of covX and r2: 
         parms$covX <- conds[i, "cx"]
         parms$r2   <- conds[i, "r2"]
+        parms$nImps <- conds[i, "nImps"]
         
         ## Simulate new complete data, if covX or r2 have changed:
         check <-

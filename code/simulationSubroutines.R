@@ -110,25 +110,34 @@ getStats <- function(lmOut, parms) {
 ###--------------------------------------------------------------------------###
 
 
-runImp <- function(parms, missData) {
-    miceOut <- with(parms,
-                    mice(data      = missData,
-                         m         = nImps,
-                         maxit     = miceIters,
-                         method    = "norm",
-                         printFlag = verbose)
-    )
+runImp <- function(parms, missData, impLists) {
     
-    ## Fill the imputed data sets:
-    rVec    <- is.na(missData$y)
-    impList <- impList2 <- list()
-    for(m in 1 : parms$nImps) {
-        impList[[m]] <- complete(miceOut, m)
-        ## Implement the MID deletion:
-        impList2[[m]] <- impList[[m]][!rVec, ]
+    if (parms$nImps == 100) {
+        
+        miceOut <- with(parms,
+                        mice(data      = missData,
+                             m         = nImps,
+                             maxit     = miceIters,
+                             method    = "norm",
+                             printFlag = verbose)
+        )
+        
+        ## Fill the imputed data sets:
+        rVec    <- is.na(missData$y)
+        impList <- impList2 <- list()
+        for(m in 1 : parms$nImps) {
+            impList[[m]] <- complete(miceOut, m)
+            ## Implement the MID deletion:
+            impList2[[m]] <- impList[[m]][!rVec, ]
+        }
+        
+    } else {
+        impLists[1] = impLists[1][1:parms$nImps];
+        impLists[2] = impLists[2][1:parms$nImps]
     }
     
-    return [impList, impList2];
+    
+    impLists
 }
 
 
@@ -265,13 +274,8 @@ doRep <- function(rp, conds, parms) {
         ## Generate missing data:
         missData <- imposeMissing(compData, parms)
         
-        if (parms$nImps == 100) {
-        impLists <- runImp(parms = parms, missData = missData)
-        } else {
-            ##impLists[1] = impLists[1].slice(0, parms$nImps);
-            ##impLists[2] = impLists[2].slice(0, parms$nImps)
-        }
-        
+        impLists <- runImp(parms = parms, missData = missData, impLists = impLists)
+ 
 
         ## Run the computations for the current condition:
         runCell(rp       = rp,

@@ -109,16 +109,15 @@ getStats <- function(lmOut, parms) {
 
 ###--------------------------------------------------------------------------###
 
-## Do all computations for a single set of crossed conditions:
-runCell <- function(rp, compData, missData, parms) {
-    ## Impute the missingess:
+
+runImp <- function(parms, missData) {
     miceOut <- with(parms,
                     mice(data      = missData,
                          m         = nImps,
                          maxit     = miceIters,
                          method    = "norm",
                          printFlag = verbose)
-                    )
+    )
     
     ## Fill the imputed data sets:
     rVec    <- is.na(missData$y)
@@ -128,6 +127,14 @@ runCell <- function(rp, compData, missData, parms) {
         ## Implement the MID deletion:
         impList2[[m]] <- impList[[m]][!rVec, ]
     }
+    
+    return [impList, impList2];
+}
+
+
+## Do all computations for a single set of crossed conditions:
+runCell <- function(rp, compData, missData, parms, impList, impList2) {
+
 
     ## Fit complete data model:
     compFit <- fitModels(compData, parms)
@@ -215,6 +222,9 @@ doRep <- function(rp, conds, parms) {
         .lec.CreateStream(c(1 : parms$nStreams))
     .lec.CurrentStream(rp)
     
+    impLists <- null;
+    
+    
     ## Loop over conditions:
     for(i in 1 : nrow(conds)) {
         ## Save the current values (possibly NULL) of covX and r2 to check if
@@ -254,12 +264,22 @@ doRep <- function(rp, conds, parms) {
         
         ## Generate missing data:
         missData <- imposeMissing(compData, parms)
+        
+        if (parms$nImps == 100) {
+        impLists <- runImp(parms = parms, missData = missData)
+        } else {
+            ##impLists[1] = impLists[1].slice(0, parms$nImps);
+            ##impLists[2] = impLists[2].slice(0, parms$nImps)
+        }
+        
 
         ## Run the computations for the current condition:
         runCell(rp       = rp,
                 compData = compData,
                 missData = missData,
-                parms    = parms)
+                parms    = parms,
+                impList = impLists[1],
+                impList2 = impLists[2])
     }
 
     rp # return rep index

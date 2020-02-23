@@ -33,9 +33,9 @@ pm <- c(0.1, 0.2, 0.4)                                  # Proportion missing
 r2 <- c(0.15, 0.3, 0.6)                                 # R-Squared
 cx <- c(0.0, 0.1, 0.3, 0.5)                             # Predictor covariance
 ap <- c(1.0, 0.75, 0.5, 0.25, 0.0)                      # Proportion of true auxiliaries modeled
-nImps <- c(1.0, 3.0, 5.0, 10.0, 15.0, 30.0, 50.0, 100.0)  #Number of imputations
+nImp <- c(1.0, 3.0, 5.0, 10.0, 15.0, 30.0, 50.0, 100.0)  #Number of imputations
 
-conds <- expand.grid(imp = imp, pm = pm, ap = ap, n = n, r2 = r2, cx = cx)
+conds <- expand.grid(imp = nImp, pm = pm, ap = ap, n = n, r2 = r2, cx = cx)
 
 ## Define the fixed simulation parameters:
 parms <- list()

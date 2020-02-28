@@ -1,7 +1,7 @@
 ### Title:    Subroutines for Imputed DV Simulation
-### Author:   Kyle M. Lang
+### Author:   Kyle M. Lang & Lucas Hovestadt
 ### Created:  2015-11-16
-### Modified: 2019-11-11
+### Modified: 2020-02-28
 
 ###--------------------------------------------------------------------------###
 
@@ -109,58 +109,39 @@ getStats <- function(lmOut, parms) {
 
 ###--------------------------------------------------------------------------###
 
-
 runImp <- function(parms, missData, impLists) {
     
     if (parms$nImps == 100) {
-        
         miceOut <- with(parms,
                         mice(data      = missData,
                              m         = nImps,
                              maxit     = miceIters,
                              method    = "norm",
                              printFlag = verbose)
-        )
+                        )
         
         ## Fill the imputed data sets:
         rVec    <- is.na(missData$y)
-        impList <- impList2 <- list()
+                                        #impList <- impList2 <- list()
         for(m in 1 : parms$nImps) {
-            impList[[m]] <- complete(miceOut, m)
+            impLists$mi[[m]] <- complete(miceOut, m)
             ## Implement the MID deletion:
-            impList2[[m]] <- impList[[m]][!rVec, ]
+            impLists$mid[[m]] <- impLists$mi[[m]][!rVec, ]
         }
-        
-    } else {
-        impLists[1] = impLists[1][1:parms$nImps];
-        impLists[2] = impLists[2][1:parms$nImps]
     }
-    
+    else {
+        impLists$mi  <- impLists$mi[1 : parms$nImps]
+        impLists$mid <- impLists$mid[1 : parms$nImps]
+    }
     
     impLists
 }
 
+###--------------------------------------------------------------------------###
 
 ## Do all computations for a single set of crossed conditions:
-runCell <- function(rp, compData, missData, parms, impList, impList2) {
-
-
-    ## Fit complete data model:
-    compFit <- fitModels(compData, parms)
-    compOut <- coef(compFit)
-
-    ## Fit listwise deleted models:
-    ldFit <- fitModels(missData, parms)
-    ldOut <- getStats(ldFit, parms)
-
-    ## Fit MI models
-    miFit <- fitModels(impList, parms)
-    miOut <- getStats(miFit, parms)
-
-    ## Fit MID models:
-    midFit <- fitModels(impList2, parms)
-    midOut <- getStats(midFit, parms)
-
+runCell <- function(rp, compData, missData, impLists, parms) {
+    
     ## Create a condition tag to label output objects:
     tag1 <- with(parms,
                  paste0("_n", nrow(compData),
@@ -173,6 +154,10 @@ runCell <- function(rp, compData, missData, parms, impList, impList2) {
                         "_pm", 100 * pm)
                  )
 
+    tag3 <- with(parms,
+                 paste0(tag2, "_imp", nImps)
+                 )
+    
     ## Save the current parameter set:
     if(rp == 1)
         saveRDS(parms,
@@ -182,8 +167,13 @@ runCell <- function(rp, compData, missData, parms, impList, impList2) {
                               ".rds")
                 )
 
-    ## Save the results:
-    if(parms$newData | parms$newN)
+### Save the results ###
+
+    if(parms$newData | parms$newN) {
+        ## Fit complete data model:
+        compFit <- fitModels(compData, parms)
+        compOut <- coef(compFit)
+        
         saveRDS(compOut,
                 file = paste0(parms$outDir,
                               "compOut",
@@ -192,29 +182,44 @@ runCell <- function(rp, compData, missData, parms, impList, impList2) {
                               rp,
                               ".rds")
                 )
+    }
 
-    saveRDS(ldOut,
-            file = paste0(parms$outDir,
-                          "ldOut",
-                          tag2,
-                          "_rep",
-                          rp,
-                          ".rds")
-            )
+    if(parms$nImps == 100) {
+        ## Fit listwise deleted models:
+        ldFit <- fitModels(missData, parms)
+        ldOut <- getStats(ldFit, parms)
+        
+        saveRDS(ldOut,
+                file = paste0(parms$outDir,
+                              "ldOut",
+                              tag2,
+                              "_rep",
+                              rp,
+                              ".rds")
+                )
+    }
 
+    ## Fit MI models
+    miFit <- fitModels(impLists$mi, parms)
+    miOut <- getStats(miFit, parms)
+    
     saveRDS(miOut,
             file = paste0(parms$outDir,
                           "miOut",
-                          tag2,
+                          tag3,
                           "_rep",
                           rp,
                           ".rds")
             )
 
+    ## Fit MID models:
+    midFit <- fitModels(impLists$mid, parms)
+    midOut <- getStats(midFit, parms)
+    
     saveRDS(midOut,
             file = paste0(parms$outDir,
                           "midOut",
-                          tag2,
+                          tag3,
                           "_rep",
                           rp,
                           ".rds")
@@ -222,6 +227,8 @@ runCell <- function(rp, compData, missData, parms, impList, impList2) {
 }# END runCell()
 
 ###--------------------------------------------------------------------------###
+                                        #rp <- 1
+                                        #i  <- 2
 
 ## Run a single replication of the simulation:
 doRep <- function(rp, conds, parms) {
@@ -230,9 +237,6 @@ doRep <- function(rp, conds, parms) {
     if(!rp %in% .lec.GetStreams())
         .lec.CreateStream(c(1 : parms$nStreams))
     .lec.CurrentStream(rp)
-    
-    impLists <- null;
-    
     
     ## Loop over conditions:
     for(i in 1 : nrow(conds)) {
@@ -246,7 +250,7 @@ doRep <- function(rp, conds, parms) {
         parms$r2   <- conds[i, "r2"]
         
         ## Update parms with number of imputations
-        parms$nImps <- conds[i, "nImps"]
+        parms$nImps <- conds[i, "imp"]
         
         ## Simulate new complete data, if covX or r2 have changed:
         check <-
@@ -267,23 +271,26 @@ doRep <- function(rp, conds, parms) {
         else parms$newN <- FALSE
         
         ## Define the missing data-related design parameters:
-        ap           <- conds[i, "ap"]
-        parms$auxWts <- matrix(c(ap, (1 - ap)))
-        parms$pm     <- conds[i, "pm"]
-        
-        ## Generate missing data:
-        missData <- imposeMissing(compData, parms)
-        
-        impLists <- runImp(parms = parms, missData = missData, impLists = impLists)
- 
+        if(parms$nImps == 100) {
+            ap           <- conds[i, "ap"]
+            parms$auxWts <- matrix(c(ap, (1 - ap)))
+            parms$pm     <- conds[i, "pm"]
+            
+            ## Generate missing data:
+            missData <- imposeMissing(compData, parms)
+            impLists <- list(mi = list(), mid = list())
+        }
+
+        ## Update the imputed datasets:
+        impLists <-
+            runImp(parms = parms, missData = missData, impLists = impLists)
 
         ## Run the computations for the current condition:
         runCell(rp       = rp,
                 compData = compData,
                 missData = missData,
-                parms    = parms,
-                impList = impLists[1],
-                impList2 = impLists[2])
+                impList  = impLists,
+                parms    = parms)
     }
 
     rp # return rep index
@@ -296,3 +303,5 @@ applyLib <- function(pkgList)
     lapply(pkgList, library, character.only = TRUE, logical = TRUE)
 
 ###--------------------------------------------------------------------------###
+
+dim(conds)

@@ -28,20 +28,20 @@ clusterSize <- 3
 outDir      <- "../output/test1/"
 
 ## Define levels of variable simulation parameters:
-n  <- c(500, 250, 100)                                  # Sample size
-pm <- c(0.1, 0.2, 0.4)                                  # Proportion missing
-r2 <- c(0.15, 0.3, 0.6)                                 # R-Squared
-cx <- c(0.0, 0.1, 0.3, 0.5)                             # Predictor covariance
-ap <- c(1.0, 0.75, 0.5, 0.25, 0.0)                      # Proportion of true auxiliaries modeled
-nImp <- c(1.0, 3.0, 5.0, 10.0, 15.0, 30.0, 50.0, 100.0)  #Number of imputations
+n   <- c(500, 250, 100)                 # Sample size
+pm  <- c(0.1, 0.2, 0.4)                 # Proportion missing
+r2  <- c(0.15, 0.3, 0.6)                # R-Squared
+cx  <- c(0.0, 0.1, 0.3, 0.5)            # Predictor covariance
+ap  <- c(1.0, 0.75, 0.5, 0.25, 0.0)     # Proportion of true auxiliaries modeled
+imp <- c(100, 50, 25, 20, 15, 10, 5, 2) # Number of imputations
 
-conds <- expand.grid(imp = nImp, pm = pm, ap = ap, n = n, r2 = r2, cx = cx)
+conds <- expand.grid(imp = imp, pm = pm, ap = ap, n = n, r2 = r2, cx = cx)
 
 ## Define the fixed simulation parameters:
 parms <- list()
 parms$verbose    <- TRUE
-parms$nImps      <- 10
-parms$miceIters  <- 10
+                                        #parms$nImps      <- 10
+parms$miceIters  <- 3
 parms$outDir     <- outDir
 parms$incompVars <- c("y", "x1")
 parms$auxVars    <- switch(studyNo,
@@ -53,7 +53,7 @@ parms$coefs      <- matrix(c(1.0, 0.33, 0.33, 0.33))
 parms$varNames   <- c("y", "x1", "z1", "z2")
 parms$model      <- as.formula("y ~ x1 + z1")
 parms$mySeed     <- 235711
-parms$maxStreams <- 500
+parms$nStreams   <- 500
 parms$nReps      <- stopRep - startRep + 1
 parms$nObs       <- max(conds$n)
 

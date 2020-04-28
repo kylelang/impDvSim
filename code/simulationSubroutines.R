@@ -1,7 +1,7 @@
 ### Title:    Subroutines for Imputed DV Simulation
 ### Author:   Kyle M. Lang & Lucas Hovestadt
 ### Created:  2015-11-16
-### Modified: 2020-02-28
+### Modified: 2020-04-27
 
 ###--------------------------------------------------------------------------###
 
@@ -112,6 +112,7 @@ getStats <- function(lmOut, parms) {
 runImp <- function(parms, missData, impLists) {
     
     if (parms$nImps == 100) {
+        ## Impute the missing data:
         miceOut <- with(parms,
                         mice(data      = missData,
                              m         = nImps,
@@ -121,8 +122,7 @@ runImp <- function(parms, missData, impLists) {
                         )
         
         ## Fill the imputed data sets:
-        rVec    <- is.na(missData$y)
-                                        #impList <- impList2 <- list()
+        rVec <- is.na(missData$y)
         for(m in 1 : parms$nImps) {
             impLists$mi[[m]] <- complete(miceOut, m)
             ## Implement the MID deletion:
@@ -130,6 +130,7 @@ runImp <- function(parms, missData, impLists) {
         }
     }
     else {
+        ## Subset the list of imputated datasets:
         impLists$mi  <- impLists$mi[1 : parms$nImps]
         impLists$mid <- impLists$mid[1 : parms$nImps]
     }
@@ -163,13 +164,13 @@ runCell <- function(rp, compData, missData, impLists, parms) {
         saveRDS(parms,
                 file = paste0(parms$outDir,
                               "parms",
-                              tag1,
+                              tag3,
                               ".rds")
                 )
 
 ### Save the results ###
 
-    if(parms$newData | parms$newN) {
+    if(parms$newN) {
         ## Fit complete data model:
         compFit <- fitModels(compData, parms)
         compOut <- coef(compFit)
@@ -228,7 +229,7 @@ runCell <- function(rp, compData, missData, impLists, parms) {
 
 ###--------------------------------------------------------------------------###
                                         #rp <- 1
-                                        #i  <- 2
+                                        #i  <- 1
 
 ## Run a single replication of the simulation:
 doRep <- function(rp, conds, parms) {
@@ -255,11 +256,7 @@ doRep <- function(rp, conds, parms) {
         ## Simulate new complete data, if covX or r2 have changed:
         check <-
             (is.null(cx) | is.null(r2)) || (cx != parms$covX | r2 != parms$r2)
-        if(check) {
-            compData      <- simData(parms)
-            parms$newData <- TRUE
-        }
-        else parms$newData <- FALSE
+        if(check) compData <- simData(parms)
         
         ## Subset the complete data, if the sample size has changed:
         n0 <- ifelse(i > 1, n, 0)
@@ -284,7 +281,7 @@ doRep <- function(rp, conds, parms) {
         ## Update the imputed datasets:
         impLists <-
             runImp(parms = parms, missData = missData, impLists = impLists)
-
+        
         ## Run the computations for the current condition:
         runCell(rp       = rp,
                 compData = compData,
@@ -292,7 +289,7 @@ doRep <- function(rp, conds, parms) {
                 impList  = impLists,
                 parms    = parms)
     }
-
+    
     rp # return rep index
 }
 
@@ -303,5 +300,3 @@ applyLib <- function(pkgList)
     lapply(pkgList, library, character.only = TRUE, logical = TRUE)
 
 ###--------------------------------------------------------------------------###
-
-dim(conds)

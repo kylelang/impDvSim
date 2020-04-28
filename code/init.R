@@ -1,9 +1,10 @@
 ### Title:    Initialize Environment and Parameters for Imputed DV Simulation
 ### Author:   Kyle M. Lang
 ### Created:  2019-11-08
-### Modified: 2019-11-08
+### Modified: 2020-04-28
 
 library(parallel)
+source("simMissingness.R")
 source("simulationSubroutines.R")
 
 ## Define a vector of necessary packages:
@@ -11,7 +12,7 @@ packages <- c("rlecuyer", "mvtnorm", "mice", "mitools")
 
 ## Which study are we running?
                                         #studyNo <- as.numeric(args[1])
-studyNo <- 2
+studyNo <- 1
 
 ## Setup parallelization environment:
                                         #startRep    <- as.numeric(args[2])
@@ -23,9 +24,9 @@ studyNo <- 2
 
 startRep    <- 1
 stopRep     <- 3
-parallel    <- FALSE
+parallel    <- TRUE
 clusterSize <- 3
-outDir      <- "../output/test1/"
+outDir      <- "../output/test2/"
 
 ## Define levels of variable simulation parameters:
 n   <- c(500, 250, 100)                 # Sample size
@@ -39,9 +40,9 @@ conds <- expand.grid(imp = imp, pm = pm, ap = ap, n = n, r2 = r2, cx = cx)
 
 ## Define the fixed simulation parameters:
 parms <- list()
-parms$verbose    <- TRUE
+parms$verbose    <- FALSE
                                         #parms$nImps      <- 10
-parms$miceIters  <- 3
+parms$miceIters  <- 5
 parms$outDir     <- outDir
 parms$incompVars <- c("y", "x1")
 parms$auxVars    <- switch(studyNo,
@@ -54,8 +55,10 @@ parms$varNames   <- c("y", "x1", "z1", "z2")
 parms$model      <- as.formula("y ~ x1 + z1")
 parms$mySeed     <- 235711
 parms$nStreams   <- 500
-parms$nReps      <- stopRep - startRep + 1
 parms$nObs       <- max(conds$n)
+
+## Create the output directory, if necessary:
+if(!dir.exists(outDir)) dir.create(outDir, recursive = TRUE)
 
 ## Initialize a cluster, if necessary:
 if(parallel) {
@@ -66,5 +69,4 @@ if(parallel) {
     clusterCall(cl = cl, fun = applyLib, pkgList = packages)
 } else {
     applyLib(packages)
-    source("simMissingness.R")
 }

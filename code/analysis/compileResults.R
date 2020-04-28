@@ -1,40 +1,45 @@
 ### Title:    Compile Results of Imputed DV Simulation
 ### Author:   Kyle M. Lang
 ### Created:  2015-11-16
-### Modified: 2019-11-05
+### Modified: 2020-04-27
 
 rm(list = ls(all = TRUE))
 
-source("../supportFunctions.R")
+source("analysisSubroutines.R")
 
 oneFile   <- FALSE
-plotDir   <- "../../plots/study2/individual/"
-dataDir   <- "../../results/study2/"
-outDir    <- "../../results/study2/"
-fileName1 <- "impDvSimRepCounts-20170821.rds"
-fileName2 <- "impDvSimOutList-20170821.rds"
+plotDir   <- "../../plots/test1/"
+dataDir   <- "../../results/test1/"
+outDir    <- "../../results/test1/"
+fileName1 <- "repCounts-20200427.rds"
+fileName2 <- "pooledOutput-20200427.rds"
 saveDate  <- format(Sys.time(), "%Y%m%d")
-nReps     <- 500
+nReps     <- 6
 beta      <- c(1.0, 0.33, 0.33)
-
-## Define levels of variable simulation parameters:
-nVec  <- c(500, 250, 100)
-pmVec <- c(0.1, 0.2, 0.4)
-r2Vec <- c(0.15, 0.3, 0.6)
-clVec <- c(0.0, 0.1, 0.3, 0.5)
-apVec <- c(1.0, 0.75, 0.5, 0.25, 0.0)
-
-condMat <- expand.grid(ap = apVec,
-                       cl = clVec,
-                       pm = pmVec,
-                       n  = nVec,
-                       r2 = r2Vec)
 
 ## Read in the results:
 reps <- readRDS(paste0(dataDir, fileName1))
 any(reps < nReps)
 
 resList <- readRDS(paste0(dataDir, fileName2))
+
+## Compile the conditions frame:
+conds <- do.call(rbind, lapply(resList, "[[", x = "conds"))
+
+i <- 1
+j <- "mi"
+
+for(i in 1 : nrow(conds)) {
+    tmp <- list()
+    for(j in c("ld", "mi", "mid"))
+        tmp <- calcOutcomes(outList = resList[[i]], what = j)
+
+    unlist(tmp)
+    
+    resList[[i]] <- tmp
+}
+
+resList[[1]]
 
 prbFrame <- sbFrame <- mcsdFrame <-
     sigFrame <- cicFrame <- ciwFrame <-

@@ -43,3 +43,6 @@ rsconnect/
 
 # MC simulation output:
 output/*
+
+# Processed results:
+results/*

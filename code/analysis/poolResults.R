@@ -1,7 +1,7 @@
-### Title:    Pool Results of Imputed DV Simulation
+### Title:    Pool/Process Results of Imputed DV Simulation
 ### Author:   Kyle M. Lang
 ### Created:  2015-11-16
-### Modified: 2020-04-27
+### Modified: 2020-04-29
 
 rm(list = ls(all = TRUE))
 
@@ -9,6 +9,8 @@ outDir   <- "../../output/test1/"
 saveDir  <- "../../results/test1/"
 saveDate <- format(Sys.time(), "%Y%m%d")
 nReps    <- 6
+
+source("analysisSubroutines.R")
 
 ## Define levels of variable simulation parameters:
 n   <- c(500, 250, 100)                 # Sample size
@@ -77,5 +79,28 @@ for(i in 1 : nrow(conds)) {
     out[[i]] <- out0
 }# END for(i in 1 : nrow(conds)
 
+## Calculate the outcome measures:
+res <- list()
+for(i in 1 : nrow(conds)) {
+    tmp <- list()
+    for(j in c("ld", "mi", "mid"))
+        tmp <- calcOutcomes(outList = out[[i]], what = j)
+    res[[i]] <- unlist(tmp)
+}
+
+## Aggregate outcome measures into a data frame:
+res <- data.frame(conds, do.call(rbind, res))
+
+## Save processed results:
 saveRDS(reps, file = paste0(saveDir, "repCounts-", saveDate, ".rds"))
 saveRDS(out, file = paste0(saveDir, "pooledOutput-", saveDate, ".rds"))
+saveRDS(res, file = paste0(saveDir, "outcomeMeasures-", saveDate, ".rds"))
+
+reps
+
+### NOTE:
+### reps = vector giving the number of successful replications for each set of
+###        crossed conditions
+### out  = list of aggregated, raw output from the simulation
+### res  = data.frame containing processed outcome measures. Each row
+###        corresponds to one set of crossed conditions. 

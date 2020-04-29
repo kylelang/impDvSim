@@ -1,7 +1,7 @@
 ### Title:    Initialize Environment and Parameters for Imputed DV Simulation
 ### Author:   Kyle M. Lang
 ### Created:  2019-11-08
-### Modified: 2020-04-28
+### Modified: 2020-04-29
 
 library(parallel)
 source("simMissingness.R")
@@ -20,8 +20,6 @@ studyNo <- 1
                                         #parallel    <- as.logical(args[4])
                                         #clusterSize <- as.numeric(args[5])
                                         #outDir      <- args[6]
-                                       
-
 startRep    <- 1
 stopRep     <- 3
 parallel    <- TRUE
@@ -41,8 +39,7 @@ conds <- expand.grid(imp = imp, pm = pm, ap = ap, n = n, r2 = r2, cx = cx)
 ## Define the fixed simulation parameters:
 parms <- list()
 parms$verbose    <- FALSE
-                                        #parms$nImps      <- 10
-parms$miceIters  <- 5
+parms$miceIters  <- 20
 parms$outDir     <- outDir
 parms$incompVars <- c("y", "x1")
 parms$auxVars    <- switch(studyNo,

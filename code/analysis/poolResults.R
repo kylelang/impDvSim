@@ -5,10 +5,10 @@
 
 rm(list = ls(all = TRUE))
 
-outDir   <- "../../output/test1/"
-saveDir  <- "../../results/test1/"
+outDir   <- "../../output/exp1/"
+saveDir  <- "../../results/exp1/"
 saveDate <- format(Sys.time(), "%Y%m%d")
-nReps    <- 6
+nReps    <- 500
 
 source("analysisSubroutines.R")
 
@@ -79,12 +79,14 @@ for(i in 1 : nrow(conds)) {
     out[[i]] <- out0
 }# END for(i in 1 : nrow(conds)
 
+out <- readRDS("../../results/exp1/pooledOutput-20200429.rds")
+
 ## Calculate the outcome measures:
 res <- list()
 for(i in 1 : nrow(conds)) {
     tmp <- list()
     for(j in c("ld", "mi", "mid"))
-        tmp <- calcOutcomes(outList = out[[i]], what = j)
+        tmp[[j]] <- calcOutcomes(outList = out[[i]], what = j)
     res[[i]] <- unlist(tmp)
 }
 

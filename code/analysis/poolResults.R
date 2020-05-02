@@ -1,12 +1,12 @@
 ### Title:    Pool/Process Results of Imputed DV Simulation
 ### Author:   Kyle M. Lang
 ### Created:  2015-11-16
-### Modified: 2020-04-29
+### Modified: 2020-05-02
 
 rm(list = ls(all = TRUE))
 
-outDir   <- "../../output/exp1/"
-saveDir  <- "../../results/exp1/"
+outDir   <- "../../output/exp2/"
+saveDir  <- "../../results/exp2/"
 saveDate <- format(Sys.time(), "%Y%m%d")
 nReps    <- 500
 
@@ -79,8 +79,6 @@ for(i in 1 : nrow(conds)) {
     out[[i]] <- out0
 }# END for(i in 1 : nrow(conds)
 
-out <- readRDS("../../results/exp1/pooledOutput-20200429.rds")
-
 ## Calculate the outcome measures:
 res <- list()
 for(i in 1 : nrow(conds)) {
@@ -97,8 +95,6 @@ res <- data.frame(conds, do.call(rbind, res))
 saveRDS(reps, file = paste0(saveDir, "repCounts-", saveDate, ".rds"))
 saveRDS(out, file = paste0(saveDir, "pooledOutput-", saveDate, ".rds"))
 saveRDS(res, file = paste0(saveDir, "outcomeMeasures-", saveDate, ".rds"))
-
-reps
 
 ### NOTE:
 ### reps = vector giving the number of successful replications for each set of

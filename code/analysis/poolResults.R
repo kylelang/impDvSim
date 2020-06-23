@@ -5,8 +5,8 @@
 
 rm(list = ls(all = TRUE))
 
-outDir   <- "../../output/exp2/"
-saveDir  <- "../../results/exp2/"
+outDir   <- "../../output/exp1/"
+saveDir  <- "../../results/exp1/"
 saveDate <- format(Sys.time(), "%Y%m%d")
 nReps    <- 500
 
@@ -77,7 +77,7 @@ for(i in 1 : nrow(conds)) {
     }# END for(rp in 1 : nReps)
 
     out[[i]] <- out0
-}# END for(i in 1 : nrow(conds)
+}# END for(i in 1 : nrow(conds))
 
 ## Calculate the outcome measures:
 res <- list()

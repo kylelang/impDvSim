@@ -1,7 +1,7 @@
 ### Title:    Analysis Subroutines for Imputed DV Simulation
 ### Author:   Kyle M. Lang
 ### Created:  2015-11-16
-### Modified: 2020-06-23
+### Modified: 2020-06-24
 
 ###--------------------------------------------------------------------------###
 
@@ -177,6 +177,25 @@ calcOutcomes <- function(outList, what, betaTrue = NULL) {
 getMode <- function(x) {
     d <- density(x)
     d$x[which.max(d$y)]
+}
+
+###--------------------------------------------------------------------------###
+
+plot0 <- function(data, outcome, param) {
+    data$group <- apply(data, 1, function(x) paste0(x["method"], x["imp"]))
+    
+    p1 <- ggplot(data,
+                 aes_string(x        = "ap",
+                            y        = paste(outcome, param, sep = "."),
+                            group    = "group",
+                            color    = "imp",
+                            linetype = "method")
+                 )
+    
+    p1 + geom_line() +
+        theme_classic() +
+        scale_linetype_manual(values = c("solid", "longdash", "dotted")) +
+        scale_color_gradient(low = "blue", high = "red")
 }
 
 ###--------------------------------------------------------------------------###

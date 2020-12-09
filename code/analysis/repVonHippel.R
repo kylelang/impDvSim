@@ -1,7 +1,7 @@
 ### Title:    (Conceptually) replicate the analysis of Von Hippel (2007)
 ### Author:   Kyle M. Lang
 ### Created:  2020-06-24
-### Modified: 2020-06-25
+### Modified: 2020-12-08
 
 
 rm(list = ls(all = TRUE))
@@ -31,15 +31,16 @@ names0 <- gsub("mi.", "", colnames(mi), fixed = TRUE)
 colnames(mi) <- colnames(mid) <- colnames(ld) <- names0
 
 ## Subset the data to more closely match Von Hippel (2007):
-filter <- with(conds, imp <= 10 & pm >= 0.2 & ap == 1.0 & n < 500 & cx >= 0.3)
+                                        #filter <- with(conds, imp <= 10 & pm >= 0.2 & ap == 1.0 & n < 500 & cx >= 0.3)
+filter <- with(conds, pm >= 0.2 & ap == 1.0 & n < 500 & cx >= 0.3)
 conds2 <- conds[filter, ]
 mi2    <- mi[filter, ]
 mid2   <- mid[filter, ]
 ld2    <- ld[filter, ]
 
 ## Aggregate over all conditions:
-mi0  <- sapply(mi2, median)
-mid0 <- sapply(mid2, median)
+mi0  <- sapply(mi2[mi2$imp <= 10, ], median)
+mid0 <- sapply(mid2[mid2$imp <= 10, ], median)
 ld0  <- sapply(ld2, median)
 
 mi0[grep("cic", names(mi0))]
@@ -58,6 +59,36 @@ ld0[grep("prb", names(mid0))]
 mi3  <- aggregate(mi2, by = with(conds2, list(imp, pm)), FUN = median)
 mid3 <- aggregate(mid2, by = with(conds2, list(imp, pm)), FUN = median)
 
+tmp <- data.frame(method = rep(c("mi", "mid"), each = nrow(mi3)),
+                  rbind(mi3, mid3)
+                  )
+
+dat1 <- tmp[
+    c("method",
+      "imp",
+      "pm",
+      grep("\\.x|\\.z1|\\.int", colnames(tmp), value = TRUE)
+      )
+]
+
+## Subset:
+par    <- "int"
+out    <- "prb"
+target <- paste(out,  par, sep = ".")
+
+tmp <- dat1[dat1$imp <= 10, ]
+tmp <- dat1
+
+p1 <- ggplot(data    = tmp,
+             mapping = aes_string(y = target, x = "imp", linetype = "method")
+             ) +
+    geom_line() +
+    theme_classic() +
+    scale_linetype_manual(values = c("solid", "longdash"))
+
+p1 + facet_wrap(~ pm, scale = "free")
+
+
 data.frame(mi3[c("imp", "pm")],
            100 * round(mi3[grep("cic", colnames(mi3))], 3)
            )
@@ -73,20 +104,15 @@ data.frame(mid3[c("imp", "pm")],
            )
 
 
-
 tmp <- (mid2[grep("ciw", colnames(mid2))] - mi2[grep("ciw", colnames(mi2))]) /
     mi2[grep("ciw", colnames(mi2))]
 100 * aggregate(tmp, by = with(conds2, list(imp, pm)), FUN = median)
 
 
-
-dim(mi3)
-dim(mid3)
-
-head(mi3)
-
 ## Stack results:
-dat1 <- rbind(mi, mid, ld)
+dat1 <- data.frame(method = rep(c("mi", "mid", "ld"), each = nrow(mi)),
+                   rbind(mi, mid, ld)
+                   )
 
 ## Compute relative CIWs:
 rciw <- mi[grep("ciw", colnames(mi))] / mid[grep("ciw", colnames(mid))]
@@ -101,18 +127,26 @@ rab <- data.frame(conds, rab)
 condList <- lapply(dat1[1 : 7], unique)
 condList
 
+dat1$n
+dat1$pm
+
 ## Subset:
 pm1 <- 0.4
 n1  <- 500
-par <- "int"
+par <- "z1"
 out <- "ciw"
 
 filter <- with(dat1, pm == pm1 & n == n1)
-dat2   <- dat1[filter, ]
+target <- which(colnames(dat1) %in% paste(out,  par, sep = "."))
+dat2   <- dat1[filter, c(1 : 7, target)]
 
-p1 <- plot0(data = dat2, outcome = out, param = par) #+ geom_abline(intercept = 0, slope = 0)
-                                        #p1 + facet_grid(r2 ~ cx, scales = "free")
+p1 <- plot0(data = dat2, outcome = out, param = par)
 p1 + facet_wrap(~ r2 + cx, scales = "free")
+
+x
+
+
+
 
 ?facet_wrap
 
